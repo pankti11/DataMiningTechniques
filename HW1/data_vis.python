@@ -1,0 +1,287 @@
+import time
+import matplotlib.pyplot as plt
+start_time = time.time()
+text_file = open("AP_train.txt", "r");
+lines = text_file.readlines();
+import numpy as np
+import operator
+
+
+data = []
+local = {}
+refrences = []
+count  = 0;
+authors = set()
+pub_ven = set()
+ref = []
+venuespec = set()
+pubvenumap = {}
+pubauthmap = {}
+publistvenumap = {}
+refperpubmap = {}
+citeperpubmap = {}
+index = ""
+flag = 0
+
+pubperyear = {}
+
+
+for line in lines:
+	
+	if(line.startswith("#index")):
+
+		if(count != 0):
+			local["ref"] = refrences
+			refperpubmap[index] = len(refrences)
+			for auth in local["authors"]:
+				localauth = auth.strip()
+				if localauth in pubauthmap:
+					pubauthmap[localauth] +=1
+				else:
+					pubauthmap[localauth] = 1
+			data.append(local)
+			local = {}
+
+		
+		index = line.lstrip("#index").strip()
+		local["index"] = index
+		count+=1
+		refrences=[]
+
+	elif(line.startswith("#*")):
+		local["ppr-ttl"] = line.lstrip("#*")
+
+	elif(line.startswith("#@")):
+		authorlo = [a.strip() for a in line.lstrip("#@").split(";")]
+		local["authors"] = authorlo
+		authors |= set(authorlo)
+
+	elif(line.startswith("#t")):
+		local["year"] = line.lstrip("#t").strip()
+
+		if local["year"] in pubperyear:
+			pubperyear[local["year"]].append(index)
+		else:
+			list1 = [index]
+			pubperyear[local["year"]] = list1
+
+	elif(line.startswith("#c")):
+		publ_name = line.lstrip("#c")
+		local["pub-venue"] = publ_name
+		if "Principles and Practice of Knowledge Discovery in Databases" in publ_name:
+			venuespec.add(publ_name)
+
+
+		localpubven = publ_name.strip()
+		if localpubven in pubvenumap:
+			pubvenumap[localpubven] +=1
+			publistvenumap[localpubven].append(index)
+		else:
+			pubvenumap[localpubven] = 1
+			list1 = [index]
+			publistvenumap[localpubven] = list1[:]
+		pub_ven.add(local["pub-venue"])
+
+	elif(line.startswith("#%")):
+		refl = line.lstrip("#%").strip()
+		refrences.append(refl)
+		ref.append(refl)
+		if refl in citeperpubmap:
+			citeperpubmap[refl] += 1
+		else:
+			citeperpubmap[refl] = 1
+
+
+local["ref"] = refrences
+refperpubmap[index] = len(refrences)
+local["index"] = index
+for auth in local["authors"]:
+	localauth = auth.strip()
+	if localauth in pubauthmap:
+		pubauthmap[localauth] +=1
+	else:
+		pubauthmap[localauth] = 1
+data.append(local)
+local = {}
+refpervenue = {}
+
+for pubvenue in publistvenumap:
+	localcount = 0
+	for pubindex in publistvenumap[pubvenue]:
+		try:
+			localcount += citeperpubmap[pubindex]
+		except:
+			pass
+			# print("not found " + str(pubindex))
+	refpervenue[pubvenue] = localcount/pubvenumap[pubvenue]
+
+
+refpervenuemdfy = {}
+
+for pubvenue in publistvenumap:
+	localcount = 0
+	if pubvenumap[pubvenue] >= 10:
+		for pubindex in publistvenumap[pubvenue]:
+			try:
+				localcount += citeperpubmap[pubindex]
+			except:
+				pass
+				# print("not found " + str(pubindex))
+		refpervenuemdfy[pubvenue] = localcount/pubvenumap[pubvenue]
+
+pubhighif = max(refpervenuemdfy.items(), key=operator.itemgetter(1))[0]
+
+
+for pubindex in publistvenumap[pubhighif]:
+	print(citeperpubmap[pubindex])
+
+tempcitationlist = []
+for pubindex in publistvenumap[pubhighif]:
+	try:
+		tempcitationlist.append(citeperpubmap[pubindex])
+		for citecount in citeperpubmap[pubindex]:
+			print(pubindex + " local " + str(citecount))
+	except:
+		pass
+		# print("not found " + str(pubindex))
+
+citeperyear = {}
+for year in pubperyear:
+	publs = len(pubperyear[year])
+	citecount = 0
+	for pubindex in pubperyear[year]:
+		try:
+			citecount += citeperpubmap[pubindex]
+		except:
+			pass
+			# print("not found " + str(pubindex))
+	citeperyear[year] = citecount / float(publs)
+
+refperyear = {}
+# print(pubperyear[10:20])
+for year in pubperyear:
+	publs = len(pubperyear[year])
+	refcount = 0
+	for pubindex in pubperyear[year]:
+		try:
+			refcount += refperpubmap[pubindex]
+		except:
+			pass
+			# print("not found " + str(pubindex))
+	refperyear[year] = refcount / float(publs)
+
+
+pubauthmap.pop('',None)
+
+
+
+pubperauth = list(pubauthmap.values())
+print(type(pubperauth))
+
+q75a = np.percentile(pubperauth, 75)
+q25a = np.percentile(pubperauth, 25)
+q2a = np.percentile(pubperauth, 50)
+stdevia = np.std(pubperauth)
+meana = np.mean(pubperauth)
+pubperven = list(pubvenumap.values())
+q75v = np.percentile(pubperven, 75)
+q25v = np.percentile(pubperven, 25)
+q2v = np.percentile(pubperven, 50)
+stdeviv = np.std(pubperven)
+meanv = np.mean(pubperven)
+
+print(len(data))
+print(len(authors))
+print(len(pub_ven))
+print(len(ref))
+print(len(venuespec))
+print("mean: " + str(meana))
+print("q1: " + str(q25a))
+print("q2: " + str(q2a))
+print("q3: " + str(q75a))
+print("standard deviation: " + str(stdevia))
+print("mean: " + str(meanv))
+print("q1: " + str(q25v))
+print("q2: " + str(q2v))
+print("q3: " + str(q75v))
+print("standard deviation: " + str(stdeviv))
+print("value with max citations")
+impactfactvenue = max(refpervenue.items(), key=operator.itemgetter(1))[0]
+print("venue with highest IF " + impactfactvenue)
+print("Impactfactor: " + str(refpervenue[impactfactvenue]))
+print("publication modified with highest impact factor: " + str(pubhighif))
+print("Modified Impactfactor: " + str(refpervenuemdfy[pubhighif]))
+print("Median" + " " + str(np.median(tempcitationlist)))
+print("Time Taken {} secs".format(time.time() - start_time))
+
+pubvenumap.pop('',None)
+# plt.hist(pubperauth,50,log=True)
+# plt.title("Authors per publication")
+# plt.xlabel("Publications")
+# plt.ylabel("Authors")
+# plt.show()
+
+publication1 =  max(pubvenumap.items(), key=operator.itemgetter(1))[0]
+print("Venue with highest number of publications: " + publication1)
+
+# plt.hist(pubperven,50,log=True)
+# plt.title("Publications per Venues")
+# plt.xlabel("Publications")
+# plt.ylabel("venues")
+# plt.show()
+
+# refperpubmap.pop('',None)
+# publication1 =  max(refperpubmap.items(), key=operator.itemgetter(1))[0]
+# print("Publication with largest number of refrences: " + publication1)
+# refpublist = list(refperpubmap.values())
+# plt.hist(refpublist,50,log=True)
+# plt.title("Refrences per Publications")
+# plt.xlabel("Publication")
+# plt.ylabel("Refrences")
+# plt.show()
+
+# citeperpubmap.pop('',None)
+# publication1 =  max(citeperpubmap.items(), key=operator.itemgetter(1))[0]
+# print("Publication with largest number of Citation: " + publication1)
+# citepublist = list(citeperpubmap.values())
+# plt.hist(citepublist,50,log=True)
+# plt.title("Citations per Publication")
+# plt.ylabel("Citations")
+# plt.xlabel("Publication")
+# plt.show()
+
+# refpervenue.pop('',None)
+# refvenlist = list(refpervenue.values())
+# plt.hist(refvenlist,50,log=True)
+# plt.title("Impact Factor of each venue")
+# plt.xlabel("Venues")
+# plt.ylabel("Impact Factor")
+# plt.show()
+
+# refpervenuemdfy.pop('',None)
+# refvenlistmdfy = list(refpervenuemdfy.values())
+# plt.hist(refvenlistmdfy,50,log=True)
+# plt.title("Modified Impact Factor of each venue")
+# plt.xlabel("Venues")
+# plt.ylabel("Impact Factor")
+# plt.show()
+
+# from collections import OrderedDict
+# refperyear.pop('',None)
+# refperyear = OrderedDict(sorted(refperyear.items()))
+# refperyearlist = list(refperyear.values())
+# plt.plot(list(refperyear.keys()),refperyearlist)
+# plt.title("Refrences for each year")
+# plt.xlabel("year")
+# plt.ylabel("Refrences")
+# plt.show()
+
+
+# citeperyear.pop('',None)
+# citeperyear = OrderedDict(sorted(citeperyear.items()))
+# citeperyearlist = list(citeperyear.values())
+# plt.plot(list(citeperyear.keys()),citeperyearlist)
+# plt.title("Citations for each year")
+# plt.xlabel("year")
+# plt.ylabel("Citations")
+# plt.show()

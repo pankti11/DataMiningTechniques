@@ -1,0 +1,43 @@
+import time
+start_time = time.time()
+text_file = open("kosarak.dat", "r");
+lines = text_file.readlines();
+maxtemp = -1
+data = []
+numsunique = []
+aff_file = open("kosarak.arff","w+")
+for line in lines:
+	numstr = line.split(" ")
+	nums = map(int, numstr)
+	numsunique = list(set(nums))
+	numsunique.sort()
+	data.append(numsunique)
+	lastelement = numsunique[len(numsunique) - 1]
+	if maxtemp < lastelement:
+		maxtemp = lastelement
+
+aff_file.write("@RELATION test\n")
+for i in range(1,maxtemp + 1):
+	aff_file.write("@ATTRIBUTE i" + str(i) + " {0, 1}\n")
+aff_file.write("@DATA\n")
+for locallist in data:
+	aff_file.write("{")
+	count = 0
+	for num in locallist:
+		if count == 0:
+			aff_file.write(str(num-1) + " 1")
+		else:
+			aff_file.write(", " + str(num-1) + " 1")
+		count = 1 
+	aff_file.write("}\n")
+
+print("Time Taken {} secs".format(time.time() - start_time))
+
+
+
+
+
+
+
+
+
